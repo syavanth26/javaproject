@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineWave - Cinema Ticket Booking System</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Space Grotesk', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#fff1f2',
+                            100: '#ffe4e6',
+                            500: '#f43f5e',
+                            600: '#e11d48',
+                            700: '#be123c',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom screen perspective effect */
+        .cinema-screen {
+            perspective: 400px;
+        }
+        .screen-curve {
+            transform: rotateX(-15deg) scaleY(0.5);
+            box-shadow: 0 15px 35px rgba(244, 63, 94, 0.35);
+        }
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #printable-ticket, #printable-ticket * {
+                visibility: visible;
+            }
+            #printable-ticket {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                color: black !important;
+            }
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col font-sans antialiased bg-slate-950 text-slate-100 selection:bg-brand-500 selection:text-white">
+
+    <!-- Top Navigation Header -->
+    <header class="sticky top-0 z-40 bg-slate-900/80 backdrop-blur-md border-b border-slate-800/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-amber-500 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-brand-500/20">
+                    <i class="fa-solid font-black fa-film"></i>
+                </div>
+                <div>
+                    <span class="font-display font-bold text-xl tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">CineWave</span>
+                    <span class="hidden sm:inline-block text-xs text-brand-500 font-semibold px-2 py-0.5 rounded bg-brand-500/10 ml-2 border border-brand-500/20">IMAX Premium</span>
+                </div>
+            </div>
+
+            <!-- Booking Progress Bar -->
+            <nav class="hidden md:flex items-center gap-2 text-sm font-medium">
+                <span id="step-nav-1" class="flex items-center gap-2 text-brand-500 font-semibold">
+                    <span class="w-6 h-6 rounded-full bg-brand-500 text-white flex items-center justify-center text-xs">1</span> Movie & Time
+                </span>
+                <i class="fa-solid fa-chevron-right text-xs text-slate-600"></i>
+                <span id="step-nav-2" class="flex items-center gap-2 text-slate-400">
+                    <span class="w-6 h-6 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center text-xs">2</span> Select Seats
+                </span>
+                <i class="fa-solid fa-chevron-right text-xs text-slate-600"></i>
+                <span id="step-nav-3" class="flex items-center gap-2 text-slate-400">
+                    <span class="w-6 h-6 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center text-xs">3</span> Checkout
+                </span>
+            </nav>
+
+            <div class="flex items-center gap-4">
+                <button id="reset-btn" title="Reset Booking" class="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-lg border border-slate-800 hover:border-slate-700 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-rotate-left"></i> Reset
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        <!-- Left 8 Columns: Selection & Seat Map Area -->
+        <section class="lg:col-span-8 space-y-8">
+            
+            <!-- SECTION 1: MOVIE SELECTION -->
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 sm:p-6 shadow-xl backdrop-blur-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-display font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-clapperboard text-brand-500"></i> Now Showing
+                    </h2>
+                    <span class="text-xs text-slate-400">Select a movie to unlock seats</span>
+                </div>
+
+                <!-- Movies Horizontal Scroll Carousel / Grid -->
+                <div id="movies-list" class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <!-- Movie Cards Injected via JS -->
+                </div>
+            </div>
+
+            <!-- SECTION 2: DATE & SHOWTIME SELECTION -->
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 sm:p-6 shadow-xl backdrop-blur-sm">
+                <h2 class="text-lg font-display font-bold text-white mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-calendar-days text-brand-500"></i> Date & Experience
+                </h2>
+                
+                <div class="space-y-4">
+                    <!-- Dates -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Select Date</label>
+                        <div id="dates-container" class="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+                            <!-- Dates populated via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Showtimes -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Select Showtime</label>
+                        <div id="showtimes-container" class="flex flex-wrap gap-2">
+                            <!-- Showtimes populated via JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 3: INTERACTIVE SEAT SELECTION MAP -->
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 sm:p-6 shadow-xl backdrop-blur-sm relative overflow-hidden">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div>
+                        <h2 class="text-lg font-display font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-couch text-brand-500"></i> Choose Your Seats
+                        </h2>
+                        <p class="text-xs text-slate-400">Auditorium 4 • Screen 4K Laser</p>
+                    </div>
+
+                    <!-- Seat Legend -->
+                    <div class="flex items-center flex-wrap gap-3 text-xs">
+                        <div class="flex items-center gap-1.5">
+                            <div class="w-4 h-4 rounded-sm bg-slate-800 border border-slate-700"></div>
+                            <span class="text-slate-400">Available</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <div class="w-4 h-4 rounded-sm bg-brand-500 border border-brand-400 shadow-sm shadow-brand-500/50"></div>
+                            <span class="text-slate-200 font-medium">Selected</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <div class="w-4 h-4 rounded-sm bg-slate-950 border border-slate-900 opacity-60"></div>
+                            <span class="text-slate-500">Occupied</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <div class="w-4 h-4 rounded-sm bg-amber-500/20 border border-amber-500/50 text-amber-400 flex items-center justify-center text-[9px]"><i class="fa-solid fa-crown"></i></div>
+                            <span class="text-slate-400">VIP (+$4)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cinema Screen Graphic -->
+                <div class="cinema-screen my-8 text-center">
+                    <div class="screen-curve w-3/4 mx-auto h-4 bg-gradient-to-b from-brand-500/40 via-brand-500/10 to-transparent border-t-2 border-brand-500/80 rounded-t-full"></div>
+                    <p class="text-[10px] tracking-widest text-slate-500 uppercase mt-2 font-semibold">SCREEN THIS WAY</p>
+                </div>
+
+                <!-- Interactive Seat Grid Container -->
+                <div class="overflow-x-auto pb-4">
+                    <div id="seat-map" class="min-w-[500px] flex flex-col items-center gap-2.5">
+                        <!-- Seats generated by JS -->
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Right 4 Columns: Live Order Summary & Checkout -->
+        <section class="lg:col-span-4 sticky top-20 space-y-6">
+            <div class="bg-slate-900/90 border border-slate-800/80 rounded-2xl p-6 shadow-2xl backdrop-blur-md">
+                <h2 class="text-lg font-display font-bold text-white pb-4 border-b border-slate-800 flex items-center justify-between">
+                    <span>Booking Summary</span>
+                    <span id="selected-count-badge" class="text-xs bg-brand-500/20 text-brand-400 px-2.5 py-0.5 rounded-full font-sans border border-brand-500/30">0 Seats</span>
+                </h2>
+
+                <!-- Active Movie & Slot Details -->
+                <div class="py-4 border-b border-slate-800 flex gap-4 items-center">
+                    <img id="summary-poster" src="" alt="Poster" class="w-16 h-24 object-cover rounded-lg shadow border border-slate-800 bg-slate-950 flex-shrink-0">
+                    <div class="flex-1 min-w-0">
+                        <h3 id="summary-title" class="font-bold text-white text-base truncate">Select a Movie</h3>
+                        <p id="summary-meta" class="text-xs text-slate-400 mt-1">---</p>
+                        <div class="flex items-center gap-2 mt-2">
+                            <span id="summary-date" class="text-[11px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded">--</span>
+                            <span id="summary-time" class="text-[11px] bg-brand-500/10 text-brand-400 font-semibold px-2 py-0.5 rounded border border-brand-500/20">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Selected Seats Breakdown -->
+                <div class="py-4 border-b border-slate-800">
+                    <div class="flex justify-between items-center text-xs font-semibold text-slate-400 mb-2">
+                        <span>SELECTED SEATS</span>
+                        <span id="seats-list-text" class="text-brand-400 font-bold">None</span>
+                    </div>
+                    <div id="seats-chips-container" class="flex flex-wrap gap-1.5 min-h-[32px] items-center">
+                        <span class="text-xs text-slate-500 italic">No seats selected yet</span>
+                    </div>
+                </div>
+
+                <!-- Price Breakdown -->
+                <div class="py-4 space-y-2.5 text-sm">
+                    <div class="flex justify-between text-slate-400">
+                        <span>Tickets Subtotal</span>
+                        <span id="price-subtotal" class="font-medium text-slate-200">$0.00</span>
+                    </div>
+                    <div class="flex justify-between text-slate-400">
+                        <span class="flex items-center gap-1">Convenience Fee <i class="fa-solid fa-circle-info text-[10px]" title="$1.50 per ticket"></i></span>
+                        <span id="price-fee" class="font-medium text-slate-200">$0.00</span>
+                    </div>
+                    <div class="flex justify-between text-slate-400">
+                        <span>Sales Tax (8%)</span>
+                        <span id="price-tax" class="font-medium text-slate-200">$0.00</span>
+                    </div>
+                    <div class="pt-3 border-t border-slate-800 flex justify-between items-end">
+                        <div>
+                            <span class="text-xs text-slate-400 uppercase tracking-wider block">Total Amount</span>
+                            <span id="price-total" class="text-2xl font-extrabold text-white font-display">$0.00</span>
+                        </div>
+                        <span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20"><i class="fa-solid fa-shield-halved"></i> Instant E-Ticket</span>
+                    </div>
+                </div>
+
+                <!-- Action Button -->
+                <button id="checkout-btn" disabled class="w-full mt-4 bg-slate-800 text-slate-500 font-bold py-3.5 px-4 rounded-xl transition duration-200 shadow-lg flex items-center justify-center gap-2 cursor-not-allowed">
+                    <span>Proceed to Checkout</span>
+                    <i class="fa-solid fa-arrow-right text-xs"></i>
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- CHECKOUT / CUSTOMER INFO MODAL -->
+    <div id="checkout-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300" id="checkout-modal-content">
+            <div class="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+                <h3 class="text-xl font-display font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-credit-card text-brand-500"></i> Customer & Payment Details
+                </h3>
+                <button id="close-checkout-modal" class="text-slate-400 hover:text-white p-1 transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <form id="checkout-form" class="p-6 space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">First Name *</label>
+                        <input type="text" required id="cust-first-name" placeholder="John" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Last Name *</label>
+                        <input type="text" required id="cust-last-name" placeholder="Doe" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Email Address (For Ticket Delivery) *</label>
+                    <input type="email" required id="cust-email" placeholder="john.doe@example.com" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Payment Method</label>
+                    <div class="grid grid-cols-3 gap-2 mt-1">
+                        <label class="border border-brand-500/50 bg-brand-500/10 p-2.5 rounded-lg flex items-center justify-center gap-2 cursor-pointer text-xs font-medium text-white">
+                            <input type="radio" name="payment-method" checked class="accent-brand-500"> Credit Card
+                        </label>
+                        <label class="border border-slate-800 bg-slate-950 p-2.5 rounded-lg flex items-center justify-center gap-2 cursor-pointer text-xs font-medium text-slate-400 hover:border-slate-700">
+                            <input type="radio" name="payment-method" class="accent-brand-500"> Apple Pay
+                        </label>
+                        <label class="border border-slate-800 bg-slate-950 p-2.5 rounded-lg flex items-center justify-center gap-2 cursor-pointer text-xs font-medium text-slate-400 hover:border-slate-700">
+                            <input type="radio" name="payment-method" class="accent-brand-500"> PayPal
+                        </label>
+                    </div>
+                </div>
+
+                <div class="space-y-3 pt-2">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Card Number *</label>
+                        <div class="relative">
+                            <input type="text" required maxlength="19" placeholder="4532 •••• •••• 8890" value="4532 8921 3410 8890" class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-3 pr-10 py-2 text-sm text-white focus:outline-none focus:border-brand-500">
+                            <i class="fa-brands fa-cc-visa absolute right-3 top-2.5 text-slate-400 text-base"></i>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">Expiry Date *</label>
+                            <input type="text" required placeholder="MM/YY" value="12/28" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">CVV *</label>
+                            <input type="password" required maxlength="4" placeholder="123" value="888" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-slate-800 flex items-center justify-between">
+                    <div>
+                        <span class="text-xs text-slate-400 block">Total Due</span>
+                        <span id="modal-pay-amount" class="text-xl font-bold text-white font-display">$0.00</span>
+                    </div>
+                    <button type="submit" id="pay-submit-btn" class="bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-600 text-white font-bold py-2.5 px-6 rounded-xl shadow-lg shadow-brand-500/25 transition duration-200 flex items-center gap-2">
+                        <i class="fa-solid fa-lock text-xs"></i> Pay & Confirm
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- TICKET RECEIPT MODAL -->
+    <div id="ticket-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-300 overflow-y-auto">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden my-8 transform scale-95 transition-transform duration-300">
+            
+            <!-- Success Banner -->
+            <div class="bg-gradient-to-r from-emerald-600 to-teal-600 p-6 text-center text-white relative">
+                <div class="w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center mx-auto mb-2 text-xl">
+                    <i class="fa-solid fa-check"></i>
+                </div>
+                <h3 class="text-2xl font-display font-extrabold">Booking Confirmed!</h3>
+                <p class="text-xs text-emerald-100 mt-1">Your tickets have been reserved and sent to your email.</p>
+            </div>
+
+            <!-- Printable Ticket Layout -->
+            <div id="printable-ticket" class="p-6 sm:p-8 bg-slate-900 text-slate-100">
+                <div class="border-2 border-dashed border-slate-800 rounded-2xl p-6 bg-slate-950 relative overflow-hidden">
+                    
+                    <!-- Decorative Side Cutouts -->
+                    <div class="absolute -left-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-slate-900 border border-slate-800"></div>
+                    <div class="absolute -right-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-slate-900 border border-slate-800"></div>
+
+                    <!-- Pass Header -->
+                    <div class="flex justify-between items-start mb-6 pb-4 border-b border-slate-800">
+                        <div>
+                            <span class="text-xs font-bold text-brand-500 tracking-widest uppercase">E-TICKET ADMIT ONE</span>
+                            <h2 id="ticket-movie-title" class="text-2xl font-display font-extrabold text-white mt-1">Movie Title</h2>
+                            <p id="ticket-cinema-hall" class="text-xs text-slate-400 mt-0.5">CineWave Multiplex • Auditorium 4</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[10px] text-slate-400 block uppercase">Booking Ref</span>
+                            <span id="ticket-ref" class="font-mono font-bold text-amber-400 text-sm">#CW-98241</span>
+                        </div>
+                    </div>
+
+                    <!-- Pass Grid Details -->
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+                        <div>
+                            <span class="text-[11px] text-slate-400 uppercase font-semibold block">Date</span>
+                            <span id="ticket-date" class="text-sm font-bold text-slate-200">Wed, Oct 24</span>
+                        </div>
+                        <div>
+                            <span class="text-[11px] text-slate-400 uppercase font-semibold block">Time</span>
+                            <span id="ticket-time" class="text-sm font-bold text-brand-400">07:30 PM</span>
+                        </div>
+                        <div>
+                            <span class="text-[11px] text-slate-400 uppercase font-semibold block">Seats</span>
+                            <span id="ticket-seats" class="text-sm font-bold text-emerald-400">D4, D5</span>
+                        </div>
+                        <div>
+                            <span class="text-[11px] text-slate-400 uppercase font-semibold block">Customer</span>
+                            <span id="ticket-name" class="text-sm font-medium text-slate-300">John Doe</span>
+                        </div>
+                        <div>
+                            <span class="text-[11px] text-slate-400 uppercase font-semibold block">Total Paid</span>
+                            <span id="ticket-paid" class="text-sm font-bold text-white">$32.50</span>
+                        </div>
+                        <div>
+                            <span class="text-[11px] text-slate-400 uppercase font-semibold block">Format</span>
+                            <span class="text-sm font-medium text-slate-300">IMAX 3D</span>
+                        </div>
+                    </div>
+
+                    <!-- QR Code Simulator & Barcode Footer -->
+                    <div class="pt-4 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div class="flex items-center gap-3">
+                            <!-- Visual Simulated QR Code -->
+                            <div class="w-16 h-16 bg-white p-1.5 rounded-lg flex-shrink-0 grid grid-cols-4 gap-0.5 shadow">
+                                <div class="bg-black"></div><div class="bg-black"></div><div class="bg-black"></div><div class="bg-white"></div>
+                                <div class="bg-black"></div><div class="bg-white"></div><div class="bg-black"></div><div class="bg-black"></div>
+                                <div class="bg-white"></div><div class="bg-black"></div><div class="bg-white"></div><div class="bg-black"></div>
+                                <div class="bg-black"></div><div class="bg-black"></div><div class="bg-black"></div><div class="bg-black"></div>
+                            </div>
+                            <div class="text-xs text-slate-400">
+                                <p class="font-medium text-slate-300">Scan at Entrance</p>
+                                <p class="text-[10px]">Show this barcode on mobile or printed slip.</p>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-barcode text-4xl text-slate-600 tracking-widest"></i>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Actions Footer -->
+            <div class="p-6 bg-slate-900 border-t border-slate-800 flex flex-wrap gap-3 justify-end">
+                <button onclick="window.print()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-semibold rounded-xl transition flex items-center gap-2">
+                    <i class="fa-solid fa-print"></i> Print Ticket
+                </button>
+                <button id="close-ticket-btn" class="px-5 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm font-bold rounded-xl shadow-lg transition">
+                    Done / New Booking
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // --- DATA MODELS ---
+        const MOVIES = [
+            {
+                id: 'm1',
+                title: 'Cyberpunk 2099',
+                genre: 'Sci-Fi / Action',
+                duration: '2h 25m',
+                rating: '8.9',
+                price: 14.50,
+                poster: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=400&auto=format&fit=crop&q=80',
+                synopsis: 'In a neon-drenched dystopian metropolis, a rogue hacker uncovers a conspiracy that threatens the boundary between human and AI consciousness.'
+            },
+            {
+                id: 'm2',
+                title: 'The Lost Kingdom',
+                genre: 'Adventure / Fantasy',
+                duration: '2h 10m',
+                rating: '8.4',
+                price: 12.00,
+                poster: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=400&auto=format&fit=crop&q=80',
+                synopsis: 'An intrepid archaeologist unearths an ancient map leading to a forgotten civilization buried beneath ocean depths.'
+            },
+            {
+                id: 'm3',
+                title: 'Midnight Echoes',
+                genre: 'Horror / Mystery',
+                duration: '1h 52m',
+                rating: '7.8',
+                price: 11.50,
+                poster: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=400&auto=format&fit=crop&q=80',
+                synopsis: 'A radio host begins broadcasting strange audio frequencies that awaken terrifying phenomena in a secluded mountain town.'
+            },
+            {
+                id: 'm4',
+                title: 'Velocity Drift',
+                genre: 'Action / Racing',
+                duration: '1h 58m',
+                rating: '8.1',
+                price: 13.00,
+                poster: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=400&auto=format&fit=crop&q=80',
+                synopsis: 'High-stakes underground street racers unite for one final heist across European capitals to buy back their freedom.'
+            }
+        ];
+
+        const DATES = [
+            { day: 'Today', date: 'Oct 24', fullDate: 'Wed, Oct 24' },
+            { day: 'Thu', date: 'Oct 25', fullDate: 'Thu, Oct 25' },
+            { day: 'Fri', date: 'Oct 26', fullDate: 'Fri, Oct 26' },
+            { day: 'Sat', date: 'Oct 27', fullDate: 'Sat, Oct 27' },
+            { day: 'Sun', date: 'Oct 28', fullDate: 'Sun, Oct 28' }
+        ];
+
+        const SHOWTIMES = ['12:30 PM', '03:45 PM', '07:30 PM', '10:15 PM'];
+
+        // Seat Map Config: 6 rows (A-F), 8 seats each
+        const ROWS = ['A', 'B', 'C', 'D', 'E', 'F'];
+        const SEATS_PER_ROW = 8;
+        // Mock pre-reserved seats for realistic demo
+        const INITIAL_OCCUPIED = ['A3', 'A4', 'C5', 'C6', 'E1', 'E2'];
+        const VIP_ROWS = ['E', 'F'];
+
+        // --- APP STATE ---
+        let state = {
+            selectedMovieId: MOVIES[0].id,
+            selectedDate: DATES[0].fullDate,
+            selectedTime: SHOWTIMES[2],
+            selectedSeats: [] // array of seat codes e.g. ['D3', 'D4']
+        };
+
+        // --- DOM ELEMENTS ---
+        const moviesListEl = document.getElementById('movies-list');
+        const datesContainerEl = document.getElementById('dates-container');
+        const showtimesContainerEl = document.getElementById('showtimes-container');
+        const seatMapEl = document.getElementById('seat-map');
+        
+        // Summary elements
+        const summaryPoster = document.getElementById('summary-poster');
+        const summaryTitle = document.getElementById('summary-title');
+        const summaryMeta = document.getElementById('summary-meta');
+        const summaryDate = document.getElementById('summary-date');
+        const summaryTime = document.getElementById('summary-time');
+        const selectedCountBadge = document.getElementById('selected-count-badge');
+        const seatsListText = document.getElementById('seats-list-text');
+        const seatsChipsContainer = document.getElementById('seats-chips-container');
+        
+        const priceSubtotalEl = document.getElementById('price-subtotal');
+        const priceFeeEl = document.getElementById('price-fee');
+        const priceTaxEl = document.getElementById('price-tax');
+        const priceTotalEl = document.getElementById('price-total');
+        const checkoutBtn = document.getElementById('checkout-btn');
+
+        // Modal Elements
+        const checkoutModal = document.getElementById('checkout-modal');
+        const checkoutModalContent = document.getElementById('checkout-modal-content');
+        const closeCheckoutModalBtn = document.getElementById('close-checkout-modal');
+        const checkoutForm = document.getElementById('checkout-form');
+        const modalPayAmount = document.getElementById('modal-pay-amount');
+
+        const ticketModal = document.getElementById('ticket-modal');
+        const closeTicketBtn = document.getElementById('close-ticket-btn');
+
+        // --- INITIALIZATION ---
+        window.addEventListener('DOMContentLoaded', () => {
+            renderMovies();
+            renderDates();
+            renderShowtimes();
+            renderSeatMap();
+            updateSummary();
+            attachEventListeners();
+        });
+
+        // --- RENDER FUNCTIONS ---
+        function renderMovies() {
+            moviesListEl.innerHTML = MOVIES.map(movie => {
+                const isSelected = movie.id === state.selectedMovieId;
+                return `
+                    <div data-id="${movie.id}" class="movie-card cursor-pointer rounded-xl overflow-hidden border ${isSelected ? 'border-brand-500 ring-2 ring-brand-500/30' : 'border-slate-800 hover:border-slate-700'} bg-slate-950 transition-all duration-200 flex flex-col group">
+                        <div class="relative aspect-[2/3] overflow-hidden bg-slate-900">
+                            <img src="${movie.poster}" alt="${movie.title}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                            <div class="absolute top-2 right-2 bg-slate-950/80 backdrop-blur-md text-amber-400 font-bold text-xs px-2 py-0.5 rounded-md flex items-center gap-1 border border-amber-500/20">
+                                <i class="fa-solid fa-star text-[10px]"></i> ${movie.rating}
+                            </div>
+                        </div>
+                        <div class="p-3 flex-1 flex flex-col justify-between">
+                            <div>
+                                <h4 class="font-bold text-sm text-white line-clamp-1 group-hover:text-brand-400 transition">${movie.title}</h4>
+                                <p class="text-[11px] text-slate-400 mt-0.5">${movie.genre}</p>
+                            </div>
+                            <div class="mt-2 pt-2 border-t border-slate-900 flex justify-between items-center text-xs">
+                                <span class="text-slate-400">${movie.duration}</span>
+                                <span class="font-bold text-brand-400">$${movie.price.toFixed(2)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderDates() {
+            datesContainerEl.innerHTML = DATES.map(item => {
+                const isSelected = item.fullDate === state.selectedDate;
+                return `
+                    <button data-date="${item.fullDate}" class="date-chip flex-shrink-0 px-4 py-2.5 rounded-xl border text-center transition ${isSelected ? 'bg-brand-500 text-white border-brand-500 font-bold shadow-lg shadow-brand-500/25' : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'}">
+                        <span class="block text-[10px] uppercase font-semibold ${isSelected ? 'text-brand-100' : 'text-slate-500'}">${item.day}</span>
+                        <span class="text-xs">${item.date}</span>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function renderShowtimes() {
+            showtimesContainerEl.innerHTML = SHOWTIMES.map(time => {
+                const isSelected = time === state.selectedTime;
+                return `
+                    <button data-time="${time}" class="time-chip px-4 py-2 rounded-xl text-xs border font-medium transition ${isSelected ? 'bg-brand-500 text-white border-brand-500 font-bold shadow-md' : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'}">
+                        <i class="fa-regular fa-clock text-[10px] mr-1 opacity-70"></i> ${time}
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function renderSeatMap() {
+            let html = '';
+            
+            ROWS.forEach(row => {
+                const isVipRow = VIP_ROWS.includes(row);
+                html += `<div class="flex items-center gap-2 sm:gap-3">`;
+                // Row Label Left
+                html += `<span class="w-4 text-xs font-bold text-slate-500 text-center">${row}</span>`;
+
+                for (let i = 1; i <= SEATS_PER_ROW; i++) {
+                    const seatId = `${row}${i}`;
+                    const isOccupied = INITIAL_OCCUPIED.includes(seatId);
+                    const isSelected = state.selectedSeats.includes(seatId);
+
+                    // Space in the middle for aisle (after seat 4)
+                    const aisleMargin = i === 4 ? 'mr-4 sm:mr-6' : '';
+
+                    let statusClasses = 'bg-slate-800 text-slate-400 hover:bg-slate-700 border-slate-700';
+                    if (isOccupied) {
+                        statusClasses = 'bg-slate-950 border-slate-900 text-slate-800 cursor-not-allowed opacity-50';
+                    } else if (isSelected) {
+                        statusClasses = 'bg-brand-500 text-white border-brand-400 shadow-md shadow-brand-500/40 ring-2 ring-brand-400/30 scale-105';
+                    } else if (isVipRow) {
+                        statusClasses = 'bg-slate-900 border-amber-500/40 text-amber-400 hover:bg-amber-500/20';
+                    }
+
+                    html += `
+                        <button 
+                            data-seat="${seatId}" 
+                            ${isOccupied ? 'disabled' : ''} 
+                            class="seat-btn w-7 h-7 sm:w-8 sm:h-8 rounded-lg text-xs font-semibold border flex items-center justify-center transition-all duration-150 ${statusClasses} ${aisleMargin}">
+                            ${isVipRow && !isSelected && !isOccupied ? '<i class="fa-solid fa-crown text-[9px]"></i>' : i}
+                        </button>
+                    `;
+                }
+
+                // Row Label Right
+                html += `<span class="w-4 text-xs font-bold text-slate-500 text-center">${row}</span>`;
+                html += `</div>`;
+            });
+
+            seatMapEl.innerHTML = html;
+        }
+
+        // --- CALCULATIONS & SUMMARY UPDATE ---
+        function getCalculations() {
+            const movie = MOVIES.find(m => m.id === state.selectedMovieId);
+            const basePrice = movie ? movie.price : 0;
+            
+            let subtotal = 0;
+            state.selectedSeats.forEach(seatId => {
+                const row = seatId.charAt(0);
+                const isVip = VIP_ROWS.includes(row);
+                subtotal += basePrice + (isVip ? 4.00 : 0);
+            });
+
+            const fee = state.selectedSeats.length * 1.50; // $1.50 convenience fee per ticket
+            const tax = (subtotal + fee) * 0.08; // 8% sales tax
+            const total = subtotal + fee + tax;
+
+            return { movie, subtotal, fee, tax, total };
+        }
+
+        function updateSummary() {
+            const { movie, subtotal, fee, tax, total } = getCalculations();
+
+            if (movie) {
+                summaryPoster.src = movie.poster;
+                summaryTitle.textContent = movie.title;
+                summaryMeta.textContent = `${movie.genre} • ${movie.duration}`;
+            }
+
+            summaryDate.textContent = state.selectedDate;
+            summaryTime.textContent = state.selectedTime;
+
+            const count = state.selectedSeats.length;
+            selectedCountBadge.textContent = `${count} ${count === 1 ? 'Seat' : 'Seats'}`;
+
+            if (count > 0) {
+                seatsListText.textContent = state.selectedSeats.join(', ');
+                seatsChipsContainer.innerHTML = state.selectedSeats.map(seat => `
+                    <span class="inline-flex items-center gap-1 bg-brand-500/10 text-brand-400 border border-brand-500/20 px-2 py-0.5 rounded text-xs font-semibold">
+                        ${seat}
+                        <i data-remove-seat="${seat}" class="fa-solid fa-xmark text-[10px] hover:text-white cursor-pointer ml-1"></i>
+                    </span>
+                `).join('');
+
+                checkoutBtn.disabled = false;
+                checkoutBtn.classList.remove('bg-slate-800', 'text-slate-500', 'cursor-not-allowed');
+                checkoutBtn.classList.add('bg-gradient-to-r', 'from-brand-600', 'to-brand-500', 'hover:from-brand-500', 'hover:to-brand-600', 'text-white', 'shadow-brand-500/25', 'cursor-pointer');
+            } else {
+                seatsListText.textContent = 'None';
+                seatsChipsContainer.innerHTML = `<span class="text-xs text-slate-500 italic">No seats selected yet</span>`;
+                
+                checkoutBtn.disabled = true;
+                checkoutBtn.classList.add('bg-slate-800', 'text-slate-500', 'cursor-not-allowed');
+                checkoutBtn.classList.remove('bg-gradient-to-r', 'from-brand-600', 'to-brand-500', 'hover:from-brand-500', 'hover:to-brand-600', 'text-white', 'shadow-brand-500/25', 'cursor-pointer');
+            }
+
+            priceSubtotalEl.textContent = `$${subtotal.toFixed(2)}`;
+            priceFeeEl.textContent = `$${fee.toFixed(2)}`;
+            priceTaxEl.textContent = `$${tax.toFixed(2)}`;
+            priceTotalEl.textContent = `$${total.toFixed(2)}`;
+            modalPayAmount.textContent = `$${total.toFixed(2)}`;
+        }
+
+        // --- EVENT LISTENERS ---
+        function attachEventListeners() {
+            // Movie selection
+            moviesListEl.addEventListener('click', (e) => {
+                const card = e.target.closest('.movie-card');
+                if (card) {
+                    state.selectedMovieId = card.dataset.id;
+                    renderMovies();
+                    updateSummary();
+                }
+            });
+
+            // Date selection
+            datesContainerEl.addEventListener('click', (e) => {
+                const btn = e.target.closest('.date-chip');
+                if (btn) {
+                    state.selectedDate = btn.dataset.date;
+                    renderDates();
+                    updateSummary();
+                }
+            });
+
+            // Showtime selection
+            showtimesContainerEl.addEventListener('click', (e) => {
+                const btn = e.target.closest('.time-chip');
+                if (btn) {
+                    state.selectedTime = btn.dataset.time;
+                    renderShowtimes();
+                    updateSummary();
+                }
+            });
+
+            // Seat Selection Map
+            seatMapEl.addEventListener('click', (e) => {
+                const btn = e.target.closest('.seat-btn');
+                if (btn && !btn.disabled) {
+                    const seatId = btn.dataset.seat;
+                    if (state.selectedSeats.includes(seatId)) {
+                        state.selectedSeats = state.selectedSeats.filter(s => s !== seatId);
+                    } else {
+                        state.selectedSeats.push(seatId);
+                        state.selectedSeats.sort();
+                    }
+                    renderSeatMap();
+                    updateSummary();
+                }
+            });
+
+            // Remove seat chip from summary
+            seatsChipsContainer.addEventListener('click', (e) => {
+                if (e.target.dataset.removeSeat) {
+                    const seatToRemove = e.target.dataset.removeSeat;
+                    state.selectedSeats = state.selectedSeats.filter(s => s !== seatToRemove);
+                    renderSeatMap();
+                    updateSummary();
+                }
+            });
+
+            // Open Checkout Modal
+            checkoutBtn.addEventListener('click', () => {
+                if (state.selectedSeats.length > 0) {
+                    openModal(checkoutModal, checkoutModalContent);
+                }
+            });
+
+            // Close Checkout Modal
+            closeCheckoutModalBtn.addEventListener('click', () => {
+                closeModal(checkoutModal, checkoutModalContent);
+            });
+
+            // Submit Payment Form
+            checkoutForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                
+                const firstName = document.getElementById('cust-first-name').value;
+                const lastName = document.getElementById('cust-last-name').value;
+                const { movie, total } = getCalculations();
+
+                // Fill digital ticket details
+                document.getElementById('ticket-movie-title').textContent = movie.title;
+                document.getElementById('ticket-date').textContent = state.selectedDate;
+                document.getElementById('ticket-time').textContent = state.selectedTime;
+                document.getElementById('ticket-seats').textContent = state.selectedSeats.join(', ');
+                document.getElementById('ticket-name').textContent = `${firstName} ${lastName}`;
+                document.getElementById('ticket-paid').textContent = `$${total.toFixed(2)}`;
+                document.getElementById('ticket-ref').textContent = `#CW-${Math.floor(10000 + Math.random() * 90000)}`;
+
+                // Close payment modal, open ticket modal
+                closeModal(checkoutModal, checkoutModalContent);
+                setTimeout(() => {
+                    openModal(ticketModal, ticketModal.firstElementChild);
+                }, 300);
+            });
+
+            // Close Ticket & Reset
+            closeTicketBtn.addEventListener('click', () => {
+                closeModal(ticketModal, ticketModal.firstElementChild);
+                resetBooking();
+            });
+
+            // Header Reset Button
+            document.getElementById('reset-btn').addEventListener('click', resetBooking);
+        }
+
+        // --- HELPER FUNCTIONS ---
+        function openModal(modalEl, contentEl) {
+            modalEl.classList.remove('pointer-events-none');
+            modalEl.classList.remove('opacity-0');
+            modalEl.classList.add('opacity-100');
+            contentEl.classList.remove('scale-95');
+            contentEl.classList.add('scale-100');
+        }
+
+        function closeModal(modalEl, contentEl) {
+            modalEl.classList.add('opacity-0');
+            modalEl.classList.remove('opacity-100');
+            contentEl.classList.add('scale-95');
+            contentEl.classList.remove('scale-100');
+            setTimeout(() => {
+                modalEl.classList.add('pointer-events-none');
+            }, 300);
+        }
+
+        function resetBooking() {
+            state.selectedSeats = [];
+            state.selectedMovieId = MOVIES[0].id;
+            state.selectedDate = DATES[0].fullDate;
+            state.selectedTime = SHOWTIMES[2];
+
+            renderMovies();
+            renderDates();
+            renderShowtimes();
+            renderSeatMap();
+            updateSummary();
+        }
+    </script>
+</body>
+</html>
